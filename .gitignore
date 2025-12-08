@@ -8,8 +8,7 @@ dist/
 .env
 .env.local
 .env.*.local
-async_basic.js
-ejercicio.js
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
