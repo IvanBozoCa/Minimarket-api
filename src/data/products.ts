@@ -1,57 +1,60 @@
 // src/data/products.ts
-import { query } from "../db";
+import { supabase } from "../supabaseClient";
 import { Product } from "../types/product";
 
 /**
  * Devuelve todos los productos.
  */
 export async function getAllProducts(): Promise<Product[]> {
-  const sql = `
-    SELECT code, barcode, name, price, stock
-    FROM products.products  -- O public.products según tu schema
-    ORDER BY code;
-  `;
+  const { data, error } = await supabase
+    .from("products")
+    .select("code, barcode, name, price, stock")
+    .order("code", { ascending: true });
 
-  const result = await query<Product>(sql);
-  return result.rows;
-}
-
-/**
- * Busca un producto por code interno (SKU).
- */
-export async function findProductByCode(code: string): Promise<Product | null> {
-  const sql = `
-    SELECT code, barcode, name, price, stock
-    FROM products.products
-    WHERE code = $1;
-  `;
-  const result = await query<Product>(sql, [code]);
-
-  if (result.rowCount === 0) {
-    return null;
+  if (error) {
+    throw error;
   }
 
-  return result.rows[0];
+  // Supabase ya devuelve un array tipado dinámicamente
+  return (data ?? []) as Product[];
 }
 
 /**
- * Busca un producto por barcode.
+ * Busca un producto por código interno (SKU).
+ */
+export async function findProductByCode(
+  code: string
+): Promise<Product | null> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("code, barcode, name, price, stock")
+    .eq("code", code)
+    .maybeSingle(); // devuelve null si no hay fila
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as Product | null) ?? null;
+}
+
+/**
+ * Busca un producto por código de barras.
  */
 export async function findProductByBarcode(
   barcode: string
 ): Promise<Product | null> {
-  const sql = `
-    SELECT code, barcode, name, price, stock
-    FROM products.products
-    WHERE barcode = $1;
-  `;
-  const result = await query<Product>(sql, [barcode]);
+  const { data, error } = await supabase
+    .from("products")
+    .select("code, barcode, name, price, stock")
+    .eq("barcode", barcode)
+    .maybeSingle();
 
-  if (result.rowCount === 0) {
-    return null;
+  if (error) {
+    throw error;
   }
 
-  return result.rows[0];
+  return (data as Product | null) ?? null;
 }
 
 /**
@@ -60,37 +63,65 @@ export async function findProductByBarcode(
 export async function addProduct(input: Product): Promise<Product> {
   const { code, barcode, name, price, stock } = input;
 
-  const sql = `
-    INSERT INTO products.products (code, barcode, name, price, stock)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING code, barcode, name, price, stock;
-  `;
+  const { data, error } = await supabase
+    .from("products")
+    .insert([{ code, barcode, name, price, stock }])
+    .select("code, barcode, name, price, stock")
+    .single();
 
-  try {
-    const result = await query<Product>(sql, [
-      code,
-      barcode,
-      name,
-      price,
-      stock,
-    ]);
-    return result.rows[0];
-  } catch (error: any) {
-    if (error.code === "23505") {
-      const detail: string = error.detail || "";
-      if (detail.includes("(code)")) {
-        const err = new Error("Product code already exists");
-        // @ts-expect-error agregamos un code custom
-        err.code = "PRODUCT_CODE_EXISTS";
-        throw err;
-      }
-      if (detail.includes("(barcode)")) {
-        const err = new Error("Product barcode already exists");
-        // @ts-expect-error agregamos un code custom
-        err.code = "PRODUCT_BARCODE_EXISTS";
-        throw err;
-      }
-    }
+  if (error) {
+    // Aquí podrías mirar error.code o error.message
+    // para mapear errores de unique a códigos custom.
     throw error;
   }
+
+  return data as Product;
+}
+
+/**
+ * Disminuye el stock del producto.
+ */
+export async function decreaseProductStock(
+  code: string,
+  quantity: number
+): Promise<Product> {
+  if (typeof quantity !== "number" || quantity <= 0) {
+    const error = new Error("quantity must be a number greater than 0");
+    // @ts-expect-error código custom
+    error.code = "INVALID_QUANTITY";
+    throw error;
+  }
+
+  // 1) Leer producto actual
+  const product = await findProductByCode(code);
+
+  if (!product) {
+    const error = new Error(`Product with code ${code} not found`);
+    // @ts-expect-error código custom
+    error.code = "PRODUCT_NOT_FOUND";
+    throw error;
+  }
+
+  if (product.stock - quantity < 0) {
+    const error = new Error(`Not enough stock for product ${code}`);
+    // @ts-expect-error código custom
+    error.code = "INSUFFICIENT_STOCK";
+    throw error;
+  }
+
+  const newStock = product.stock - quantity;
+
+  // 2) Actualizar stock en BD
+  const { data, error } = await supabase
+    .from("products")
+    .update({ stock: newStock })
+    .eq("code", code)
+    .select("code, barcode, name, price, stock")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Product;
 }

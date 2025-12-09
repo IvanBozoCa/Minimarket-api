@@ -2,7 +2,7 @@
 import "dotenv/config";
 import express, { Application, Request, Response, NextFunction } from "express";
 import productsRouter from "./routes/products.routes";
-import salesRouter from "./routes/sales.routes";
+//import salesRouter from "./routes/sales.routes";
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -17,7 +17,7 @@ app.get("/health", (req: Request, res: Response) => {
 
 // Rutas
 app.use("/products", productsRouter);
-app.use("/sales", salesRouter);
+//app.use("/sales", salesRouter);
 
 // 404
 app.use((req: Request, res: Response) => {
