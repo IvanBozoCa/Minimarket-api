@@ -62,3 +62,23 @@ src/
   routes/
     products.routes.ts  # Rutas HTTP para /products
     sales.routes.ts     # Rutas HTTP para /sales
+```
+Próximos pasos / Roadmap
+
+Este proyecto está pensado como base para mejoras futuras:
+
+Autenticación con JWT (roles: cajero, administrador).
+
+Integración con lector de código de barras (ej. app móvil que consuma esta API).
+
+Implementar transacciones a nivel de base de datos para garantizar consistencia en ventas y stock.
+
+Migrar la lógica a NestJS con módulos products y sales separados.
+
+Agregar tests unitarios (Jest) para la lógica de negocio crítica.
+
+Crear un frontend simple (React) que consuma esta API y simule una caja de minimarket.
+Autor
+
+Desarrollado por Iván Bozo Catalán
+Estudiante de último semestre de Ingeniería Civil en Computación, con experiencia previa en backend con Python/FastAPI y despliegues en Render/Vercel, actualmente ampliando su stack hacia Node.js, TypeScript y NestJS.
